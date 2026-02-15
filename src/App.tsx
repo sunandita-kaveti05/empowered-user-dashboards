@@ -1,27 +1,63 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { JobProvider } from '@/context/JobContext';
+import { SplashScreen } from '@/components/SplashScreen';
+import { TopBar } from '@/components/TopBar';
+import { AuthDialog } from '@/components/AuthDialog';
+import { HomePage } from '@/components/HomePage';
+import { CandidateDashboard } from '@/components/CandidateDashboard';
+import { RecruiterDashboard } from '@/components/RecruiterDashboard';
+import { Toaster } from '@/components/ui/toaster';
 
-const queryClient = new QueryClient();
+function AppContent() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
+  const renderContent = () => {
+    if (!isAuthenticated) {
+      return <HomePage onLoginClick={() => setAuthDialogOpen(true)} />;
+    }
+    if (user?.role === 'candidate') {
+      return <CandidateDashboard />;
+    }
+    if (user?.role === 'recruiter') {
+      return <RecruiterDashboard />;
+    }
+    return <HomePage onLoginClick={() => setAuthDialogOpen(true)} />;
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AnimatePresence mode="wait">
+        {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+      </AnimatePresence>
+
+      {!showSplash && (
+        <>
+          <TopBar onLoginClick={() => setAuthDialogOpen(true)} />
+          <main>{renderContent()}</main>
+          <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+          <Toaster />
+        </>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <JobProvider>
+        <AppContent />
+      </JobProvider>
+    </AuthProvider>
+  );
+}
 
 export default App;
